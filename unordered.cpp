@@ -18,13 +18,17 @@
  * along with graphSampler. If not, see <http://www.gnu.org/licenses/>.
  */
 
- 
+
 #include <boost/dynamic_bitset.hpp>
 #include <unordered_map>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <random>
+#include <stack>
+#include <unordered_set>
+#include <bits/unordered_set.h>
+#include <queue>
 
 template<typename Out> void split(const std::string &s, char delim, Out result) {
 	std::stringstream ss;
@@ -52,7 +56,7 @@ int main(int argc, char** argv) {
 	std::unordered_map<std::string,std::string> options;
     if (cfgfile.good()) {
 		std::string line;
-		
+
 		while( std::getline(cfgfile, line) ){
 			std::istringstream is_line(line);
 			std::string key;
@@ -66,12 +70,12 @@ int main(int argc, char** argv) {
 	} else {
         std::cerr << "Error: configuration file '" << file << "' does not exists. I'm going to use the default settings " << std::endl;
     }
-	
+
 	std::string graph{"graph.txt"};
 	if (options.find("graph")!=options.end()) {
 		graph = options["graph"];
 	}
-	
+
 	std::string line;
 	std::ifstream infile(graph);
 	std::unordered_map<unsigned long, std::vector<std::pair<bool,unsigned long>>> map;
@@ -121,7 +125,7 @@ int main(int argc, char** argv) {
 		}
 		std::sort(l.begin(), l.end());
 	}
-	
+
 	// Selecting the next vertex step
 	std::mt19937 rvGen;
 	int samplerVertex = 0;
@@ -129,7 +133,7 @@ int main(int argc, char** argv) {
 		samplerVertex = std::stoi(options["vertex"]);
 	}
 	rvGen.seed(samplerVertex);
-	
+
 	// Skipping to the next vertex
 	std::mt19937 rjGen;
 	int samplerSkip = 1;
@@ -137,7 +141,7 @@ int main(int argc, char** argv) {
 		samplerSkip = std::stoi(options["skip"]);
 	}
 	rjGen.seed(samplerSkip);
-	
+
 	// Adjacency List traversal selector
 	std::vector<unsigned long> next{10};
 	std::mt19937 nchoiceGen;
@@ -152,20 +156,21 @@ int main(int argc, char** argv) {
 		std::sort(next.begin(), next.end());
 	}
 	//
-	
+
 	// Randomly choosing the jumped vertex
 	std::uniform_int_distribution<unsigned long> rv;
-	rv = std::uniform_int_distribution<unsigned long>(0, vCount);
-	
+	rv = std::uniform_int_distribution<unsigned long>(0, vCount-1);
+
 	// Jump probability
 	std::uniform_real_distribution<double> rj{0.0,1.0};
-	
+
 	double jumpProb = 0.4;
 	if (options.find("jumpProb")!=options.end()) {
 		std::istringstream i(options["jumpProb"]);
 		i >> jumpProb;
 	}
-	
+    std::queue<unsigned long> operandSize;
+
 	for (unsigned long samplerNext : next) {
 		nchoiceGen.seed(samplerNext);
 		unsigned long counter = 0;
@@ -175,7 +180,13 @@ int main(int argc, char** argv) {
 		boost::dynamic_bitset<> db{vCount};
         db.resize(vCount, false);
         db.set(u, true);
+
+        std::unordered_multimap<unsigned long, unsigned long> adjListtoSerialize;
+        std::unordered_set<unsigned long> nVert;
+
 		for (unsigned long size : l) {
+            operandSize.push(size);
+
             if (vCount > 0 ) do {
 				int v;
 				int step;
@@ -196,35 +207,91 @@ int main(int argc, char** argv) {
 						}
 						nuf->second[idgen].first = true;
 						v = nuf->second[idgen].second;
-						db[v] = true;
-					} while ((adjSCount[u] == Nusize)&&(step++<Nusize));
+                        if (!db[v]) {
+                            counter++;
+                            db[v] = true;
+                        }
 
+					} while ((adjSCount[u] == Nusize)&&(step++<Nusize));
 					if (step <= Nusize) {
 						u = v;
-						db.set(u,true);
+                        if (!db[u]) {
+                            counter++;
+                            db.set(u,true);
+                        }
+
 					} else {
 						u = rv(rvGen);
-						db.set(u,true);
+                        if (!db[u]) {
+                            counter++;
+                            db.set(u,true);
+                        }
 					}
 				} else {
 					u = rv(rvGen);
-					db.set(u,true);
+                    if (!db[u]) {
+                        counter++;
+                        db.set(u,true);
+                    }
+
 				}
 			} while (counter<size);
-			
-			  std::ofstream myfile;
-			  std::string filename = graph+"_"+std::to_string(size)+"_"+std::to_string(samplerNext)+"_"+std::to_string(jumpProb)+"_"+std::to_string(samplerSkip)+"_"+std::to_string(samplerVertex);
-			  myfile.open (filename);
-			  for (std::unordered_map<unsigned long, std::vector<std::pair<bool,unsigned long>>>::iterator it=map.begin(); it!=map.end(); ++it) {
-			  	if (db[it->first]) {
-			  		for (std::pair<bool,unsigned long> cp : it->second) {
-			  			if (cp.first) {
-			  				myfile << it->first << "\t" << cp.second << "\n";
-			  			}
-			  		}
-			  	}
-			  }
-			  myfile.close();
+
+            bool hasEdge = false;
+            adjListtoSerialize.clear();
+            nVert.clear();
+            for (std::unordered_map<unsigned long, std::vector<std::pair<bool,unsigned long>>>::iterator it=map.begin(); it!=map.end(); ++it) {
+                if (db[it->first]) {
+                    for (std::pair<bool,unsigned long> cp : it->second) {
+                        if (cp.first) {
+                            nVert.insert(it->first);
+                            nVert.insert(cp.second);
+                            hasEdge = true;
+                            adjListtoSerialize.emplace(it->first, cp.second);
+                        }
+                    }
+                }
+            }
+
+            std::cout << nVert.size() << " vs. " << operandSize.front() << std::endl;
+
+            if (hasEdge && nVert.size() >= operandSize.front()) {
+                std::ofstream myfile;
+                std::string filename = graph+"_"+std::to_string(operandSize.front())+"_"+std::to_string(samplerNext)+"_"+std::to_string(jumpProb)+"_"+std::to_string(samplerSkip)+"_"+std::to_string(samplerVertex);
+                myfile.open (filename);
+                nVert.clear();
+                for (auto it = adjListtoSerialize.begin(); it != adjListtoSerialize.end(); ++it) {
+                    nVert.insert(it->first);
+                    nVert.insert(it->second);
+                    myfile << it->first << "\t" << it->second << std::endl;
+                    if (nVert.size() >= operandSize.front()) {
+                        nVert.clear();
+                        operandSize.pop();
+                        break;
+                    }
+                }
+                myfile.close();
+            }
+
+
 		}
+
+        while (!operandSize.empty()) {
+            std::ofstream myfile;
+            std::string filename = graph+"_"+std::to_string(operandSize.front())+"_"+std::to_string(samplerNext)+"_"+std::to_string(jumpProb)+"_"+std::to_string(samplerSkip)+"_"+std::to_string(samplerVertex);
+            myfile.open (filename);
+            nVert.clear();
+            for (auto it = adjListtoSerialize.begin(); it != adjListtoSerialize.end(); ++it) {
+                nVert.insert(it->first);
+                nVert.insert(it->second);
+                myfile << it->first << "\t" << it->second << std::endl;
+                if (nVert.size() >= operandSize.front()) {
+                    nVert.clear();
+                    operandSize.pop();
+                    break;
+                }
+            }
+            myfile.close();
+        }
 	}
 }
