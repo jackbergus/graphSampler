@@ -110,7 +110,6 @@ int main(int argc, char** argv) {
     for (unsigned long i = 0; i<=vCount; i++) {
         adjSCount.emplace_back(0);
     }
-	
 	std::vector<unsigned long> l{10};
 	if (options.find("samples")!=options.end()) {
 		l.clear();
@@ -174,7 +173,7 @@ int main(int argc, char** argv) {
 		// first visited vertex, u
 		unsigned long u = rv(rvGen);
 		boost::dynamic_bitset<> db{vCount};
-        db.
+        db.resize(vCount, false);
         db.set(u, true);
 		for (unsigned long size : l) {
             if (vCount > 0 ) do {
