@@ -88,9 +88,9 @@ int main(int argc, char** argv) {
                 int c = 0;
                 while(std::getline(iss, token, '\t')) {
                     if (c++)
-                        src = std::stoul (token,nullptr,0);
-                    else
                         dst = std::stoul (token,nullptr,0);
+                    else
+                        src = std::stoul (token,nullptr,0);
                 }
                 map[src].emplace_back(false,dst);
                 count++;
@@ -105,7 +105,11 @@ int main(int argc, char** argv) {
         std::cerr << "Error: the adjacency list file '" << graph << "' does not exists. I'm going to use the default settings " << std::endl;
     }
 
-	std::vector<unsigned long> adjSCount{vCount,0};
+    const std::vector<unsigned long>::value_type init = 0;
+	std::vector<unsigned long> adjSCount;
+    for (unsigned long i = 0; i<=vCount; i++) {
+        adjSCount.emplace_back(0);
+    }
 	
 	std::vector<unsigned long> l{10};
 	if (options.find("samples")!=options.end()) {
@@ -170,12 +174,13 @@ int main(int argc, char** argv) {
 		// first visited vertex, u
 		unsigned long u = rv(rvGen);
 		boost::dynamic_bitset<> db{vCount};
+        db.
         db.set(u, true);
 		for (unsigned long size : l) {
             if (vCount > 0 ) do {
 				int v;
 				int step;
-				auto nuf = map.find(u);
+                std::unordered_map<unsigned long, std::vector<std::pair<bool,unsigned long>>>::iterator nuf = map.find(u);
 				unsigned long Nusize = 0;
 				if (nuf != map.end()) {
 					Nusize = nuf->second.size();
@@ -211,7 +216,7 @@ int main(int argc, char** argv) {
 			  std::ofstream myfile;
 			  std::string filename = graph+"_"+std::to_string(size)+"_"+std::to_string(samplerNext)+"_"+std::to_string(jumpProb)+"_"+std::to_string(samplerSkip)+"_"+std::to_string(samplerVertex);
 			  myfile.open (filename);
-			  for (auto it=map.begin(); it!=map.end(); ++it) {
+			  for (std::unordered_map<unsigned long, std::vector<std::pair<bool,unsigned long>>>::iterator it=map.begin(); it!=map.end(); ++it) {
 			  	if (db[it->first]) {
 			  		for (std::pair<bool,unsigned long> cp : it->second) {
 			  			if (cp.first) {
