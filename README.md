@@ -1,4 +1,6 @@
 # graphSampler
+> Giacomo Bergami, &copy; 2017-2018
+
 Samples random graphs generated from an adjacency list, where source and target vertices are tab separated.
 This graph sampler uses a random graph visit, after which different subgraphs are visited from the initial subgraph.
 
