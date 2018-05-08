@@ -169,11 +169,13 @@ int main(int argc, char** argv) {
 		std::istringstream i(options["jumpProb"]);
 		i >> jumpProb;
 	}
-    std::queue<unsigned long> operandSize;
 
 	for (unsigned long samplerNext : next) {
 		nchoiceGen.seed(samplerNext);
 		unsigned long counter = 0;
+
+        std::unordered_set<unsigned long> nVert;
+        std::unordered_set<unsigned long> toRemove;
 
 		// first visited vertex, u
 		unsigned long u = rv(rvGen);
@@ -181,12 +183,17 @@ int main(int argc, char** argv) {
         db.resize(vCount, false);
         db.set(u, true);
 
+        // opening file writers
+        std::unordered_map<unsigned long, std::ofstream> fileWriter;
+        for (unsigned long size : l) {
+            std::string filename = graph+"_"+std::to_string(size)+"_"+std::to_string(samplerNext)+"_"+std::to_string(jumpProb)+"_"+std::to_string(samplerSkip)+"_"+std::to_string(samplerVertex);
+            fileWriter.emplace(size, filename.c_str());
+        }
+
         std::unordered_multimap<unsigned long, unsigned long> adjListtoSerialize;
-        std::unordered_set<unsigned long> nVert;
 
 		for (unsigned long size : l) {
-            operandSize.push(size);
-
+            std::cout << "Scanning size = " << size << std::endl;
             if (vCount > 0 ) do {
 				int v;
 				int step;
@@ -204,6 +211,16 @@ int main(int argc, char** argv) {
 						unsigned long idgen = nuNext(nchoiceGen);
 						if (!nuf->second[idgen].first) {
 							adjSCount[u]++;
+                            for (auto it = fileWriter.begin(); it != fileWriter.end(); ++it) {
+                                nVert.insert(u);
+                                nVert.insert(nuf->second[idgen].second);
+                                if (toRemove.find(it->first) == toRemove.end()) {
+                                    if (nVert.size() >= it->first) {
+                                        toRemove.insert(it->first);
+                                    }
+                                    it->second << u << "\t" << nuf->second[idgen].second << std::endl;
+                                }
+                            }
 						}
 						nuf->second[idgen].first = true;
 						v = nuf->second[idgen].second;
@@ -237,25 +254,14 @@ int main(int argc, char** argv) {
 				}
 			} while (counter<size);
 
-            bool hasEdge = false;
-            adjListtoSerialize.clear();
-            nVert.clear();
-            for (std::unordered_map<unsigned long, std::vector<std::pair<bool,unsigned long>>>::iterator it=map.begin(); it!=map.end(); ++it) {
-                if (db[it->first]) {
-                    for (std::pair<bool,unsigned long> cp : it->second) {
-                        if (cp.first) {
-                            nVert.insert(it->first);
-                            nVert.insert(cp.second);
-                            hasEdge = true;
-                            adjListtoSerialize.emplace(it->first, cp.second);
-                        }
-                    }
-                }
+            for (unsigned long i : toRemove) {
+                std::cout << " closing " << nVert.size() << " vs. " << i << std::endl;
+                fileWriter[i].close();
+                fileWriter.erase(i);
             }
+            toRemove.clear();
 
-            std::cout << nVert.size() << " vs. " << operandSize.front() << std::endl;
-
-            if (hasEdge && nVert.size() >= operandSize.front()) {
+            /*if (hasEdge && nVert.size() >= operandSize.front()) {
                 std::ofstream myfile;
                 std::string filename = graph+"_"+std::to_string(operandSize.front())+"_"+std::to_string(samplerNext)+"_"+std::to_string(jumpProb)+"_"+std::to_string(samplerSkip)+"_"+std::to_string(samplerVertex);
                 myfile.open (filename);
@@ -271,27 +277,10 @@ int main(int argc, char** argv) {
                     }
                 }
                 myfile.close();
-            }
+            }*/
 
 
 		}
 
-        while (!operandSize.empty()) {
-            std::ofstream myfile;
-            std::string filename = graph+"_"+std::to_string(operandSize.front())+"_"+std::to_string(samplerNext)+"_"+std::to_string(jumpProb)+"_"+std::to_string(samplerSkip)+"_"+std::to_string(samplerVertex);
-            myfile.open (filename);
-            nVert.clear();
-            for (auto it = adjListtoSerialize.begin(); it != adjListtoSerialize.end(); ++it) {
-                nVert.insert(it->first);
-                nVert.insert(it->second);
-                myfile << it->first << "\t" << it->second << std::endl;
-                if (nVert.size() >= operandSize.front()) {
-                    nVert.clear();
-                    operandSize.pop();
-                    break;
-                }
-            }
-            myfile.close();
-        }
 	}
 }
