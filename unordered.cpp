@@ -261,25 +261,6 @@ int main(int argc, char** argv) {
             }
             toRemove.clear();
 
-            /*if (hasEdge && nVert.size() >= operandSize.front()) {
-                std::ofstream myfile;
-                std::string filename = graph+"_"+std::to_string(operandSize.front())+"_"+std::to_string(samplerNext)+"_"+std::to_string(jumpProb)+"_"+std::to_string(samplerSkip)+"_"+std::to_string(samplerVertex);
-                myfile.open (filename);
-                nVert.clear();
-                for (auto it = adjListtoSerialize.begin(); it != adjListtoSerialize.end(); ++it) {
-                    nVert.insert(it->first);
-                    nVert.insert(it->second);
-                    myfile << it->first << "\t" << it->second << std::endl;
-                    if (nVert.size() >= operandSize.front()) {
-                        nVert.clear();
-                        operandSize.pop();
-                        break;
-                    }
-                }
-                myfile.close();
-            }*/
-
-
 		}
 
 	}
